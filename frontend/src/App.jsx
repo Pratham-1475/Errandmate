@@ -1,27 +1,29 @@
-import React from 'react'
+import React, { useState } from 'react';
+import Login from './components/Login';
+import PostErrand from './components/PostErrand';
+import ErrandFeed from './components/ErrandFeed';
 
 function App() {
+  const [view, setView] = useState('login');
+
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
-      <header className="bg-indigo-600 w-full p-4 text-white text-center shadow-md fixed top-0">
-        <h1 className="text-2xl font-bold">ErrandMate</h1>
-      </header>
-      
-      <main className="mt-20 p-6 bg-white rounded-xl shadow-lg border border-gray-200 text-center">
-        <h2 className="text-xl font-semibold text-gray-800">Welcome, Member 1!</h2>
-        <p className="text-gray-600 mt-2">The Frontend is ready for AWS integration.</p>
-        
-        <div className="mt-6 flex gap-4">
-          <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition">
-            Post an Errand
-          </button>
-          <button className="bg-white text-indigo-600 border border-indigo-600 px-4 py-2 rounded-lg font-medium hover:bg-indigo-50 transition">
-            Find Work
-          </button>
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-indigo-600 p-4 text-white flex justify-between shadow-lg">
+        <h1 className="font-bold text-xl">ErrandMate</h1>
+        <div className="flex gap-4">
+          <button onClick={() => setView('login')} className="hover:underline">Login</button>
+          <button onClick={() => setView('feed')} className="hover:underline">Feed</button>
+          <button onClick={() => setView('post')} className="hover:underline">Post</button>
         </div>
-      </main>
+      </nav>
+
+      <div className="container mx-auto">
+        {view === 'login' && <Login />}
+        {view === 'feed' && <ErrandFeed />}
+        {view === 'post' && <PostErrand />}
+      </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
