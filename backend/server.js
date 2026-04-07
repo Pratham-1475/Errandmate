@@ -9,7 +9,14 @@ app.use(cors());
 app.use(express.json());
 
 // 1. Check if Backend is alive
-app.get('/', (req, res) => res.json({ status: "Online", message: "ErrandMate Backend is Live!" }));
+app.get('/api/errands', (req, res) => {
+  // Temporary fake data until Member 4 gives us the RDS link
+  const mockErrands = [
+    { id: 1, title: "Pick up Groceries", budget: 500, location: "Sector 7" },
+    { id: 2, title: "Fix My Laptop", budget: 1500, location: "Hostel B" }
+  ];
+  res.json(mockErrands);
+});
 
 // 2. Member 1 uses this to Post an Errand
 app.post('/api/errands', async (req, res) => {
