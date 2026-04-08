@@ -5,7 +5,7 @@ FROM node:18
 WORKDIR /usr/src/app
 
 # 3. Copy package files first (to speed up builds)
-COPY package*.json ./
+COPY backend/package*.json ./
 
 # 4. Install your dependencies
 RUN npm install
