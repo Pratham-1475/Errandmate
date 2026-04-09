@@ -17,6 +17,12 @@ app.use(express.json());
 
 // 1. AWS Health Check (Required for Member 3's Load Balancer)
 // Link: http://ErrandMate-ALB-1811716317.ap-south-1.elb.amazonaws.com/health
+// 0. Root Health Check (Requested by Member 3 for AWS ALB)
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// 1. AWS Health Check (Existing)
 app.get('/health', (req, res) => {
   res.status(200).send('Healthy');
 });
