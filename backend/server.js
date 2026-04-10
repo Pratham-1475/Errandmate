@@ -52,18 +52,24 @@ app.get('/health', (req, res) => {
   res.status(200).send('Healthy');
 });
 
-// 2. GET All Errands
+/// --- 2. GET All Errands (Debug Version) ---
 app.get('/errands', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM errands ORDER BY created_at DESC');
-    res.json(result.rows);
+    
+    // If connection works, this will return an array (even if empty [])
+    res.json(result.rows); 
+    
   } catch (err) {
-    console.error("⚠️ Database GET failed. Falling back to MOCK. Error:", err.message);
-    res.json(mockErrands);
+    console.error("❌ REAL DB ERROR (GET):", err.message);
+    res.status(500).json({ 
+      error: "Database connection failed", 
+      details: err.message 
+    });
   }
 });
 
-// 3. POST New Errand
+// --- 3. POST New Errand (Debug Version) ---
 app.post('/errands', async (req, res) => {
   const { title, description, budget, location, clientId } = req.body;
   console.log("🚀 Incoming Post Request:", req.body);
@@ -78,16 +84,27 @@ app.post('/errands', async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6) 
       RETURNING *`;
     
-    const values = [title, description || "No description", budget, location || "Remote", clientId || 1, 'PENDING'];
+    const values = [
+      title, 
+      description || "No description", 
+      budget, 
+      location || "Remote", 
+      clientId || 1, 
+      'PENDING'
+    ];
+
     const result = await db.query(queryText, values);
     
     console.log("✅ Saved to AWS RDS. ID:", result.rows[0].id);
     res.status(201).json({ message: "Saved to RDS.", data: result.rows[0] });
+
   } catch (err) {
-    console.error("⚠️ DB POST failed. Returning Mock Success. Error:", err.message);
-    res.status(201).json({ 
-      message: "Handshake Successful! (Mock Mode)", 
-      data: req.body 
+    console.error("❌ REAL DB ERROR (POST):", err.message);
+    
+    // We send a 500 error now instead of pretending it worked
+    res.status(500).json({ 
+      error: "Could not save to database", 
+      details: err.message 
     });
   }
 });
