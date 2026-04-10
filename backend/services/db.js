@@ -2,13 +2,14 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'ErrandMate2026!',
+  // HARDCODED ENDPOINT TO PREVENT 127.0.0.1 ERRORS
+  host: 'errandmate-db.c1iqs2c4y7sx.ap-south-1.rds.amazonaws.com', 
+  database: process.env.DB_NAME || 'postgres',
+  port: 5432,
   ssl: {
-    rejectUnauthorized: false // This is CRITICAL for AWS RDS connection
+    rejectUnauthorized: false
   }
 });
 
@@ -16,4 +17,4 @@ module.exports = {
   query: (text, params) => pool.query(text, params),
 };
 
-console.log("📡 Connecting to RDS host:", process.env.DB_HOST);
+console.log("📡 DATABASE: Hardcoded RDS handshake initiated.");

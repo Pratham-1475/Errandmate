@@ -7,7 +7,7 @@ const { getUploadUrl } = require('./services/s3Service');
 const app = express();
 
 // --- Middleware ---
-app.use(cors());
+app.use(cors({ origin: "*" })); // Allows Member 1's frontend to talk to your API
 app.use(express.json());
 
 // --- DATABASE AUTO-MIGRATION (Member 1 & 4's Sync) ---
