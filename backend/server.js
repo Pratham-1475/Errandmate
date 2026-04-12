@@ -13,6 +13,7 @@ app.use(express.json());
 // --- DATABASE AUTO-MIGRATION ---
 async function initDatabase() {
   try {
+    // We added runner_id and status to support the full task lifecycle
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS errands (
         id SERIAL PRIMARY KEY,
@@ -21,6 +22,7 @@ async function initDatabase() {
         budget INT NOT NULL,
         location VARCHAR(255) DEFAULT 'Remote',
         client_id INT DEFAULT 1,
+        runner_id INT DEFAULT NULL,
         status VARCHAR(50) DEFAULT 'PENDING',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -36,92 +38,94 @@ initDatabase();
 
 // --- ROUTES ---
 
-// 0. Root Health Check (CRITICAL: Fixes the 502 Bad Gateway)
-app.get('/', (req, res) => {
-  res.status(200).send('OK');
-});
+// 0. Health Checks (For AWS Load Balancer)
+app.get('/', (req, res) => res.status(200).send('OK'));
+app.get('/health', (req, res) => res.status(200).send('Healthy'));
 
-// 1. AWS Health Check
-app.get('/health', (req, res) => {
-  res.status(200).send('Healthy');
-});
-
-// 2. GET All Errands
+// 1. PUBLIC FEED: GET All Available Errands
+// Only shows 'PENDING' tasks so they "disappear" once someone is hired
 app.get('/errands', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM errands ORDER BY created_at DESC');
+    const result = await db.query(
+      "SELECT * FROM errands WHERE status = 'PENDING' ORDER BY created_at DESC"
+    );
     res.json(result.rows); 
   } catch (err) {
-    console.error("❌ REAL DB ERROR (GET):", err.message);
-    res.status(500).json({ 
-      error: "Database connection failed", 
-      details: err.message 
-    });
+    console.error("❌ DB ERROR (GET Feed):", err.message);
+    res.status(500).json({ error: "Could not load feed.", details: err.message });
+  }
+});
+
+// 2. USER DASHBOARD: GET tasks posted by a specific user
+app.get('/errands/user/:id', async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const result = await db.query(
+      'SELECT * FROM errands WHERE client_id = $1 ORDER BY created_at DESC', 
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ DB ERROR (User Dashboard):", err.message);
+    res.status(500).json({ error: "Failed to load dashboard." });
   }
 });
 
 // 3. POST New Errand
 app.post('/errands', async (req, res) => {
   const { title, description, budget, location, clientId } = req.body;
-  console.log("🚀 Incoming Post Request:", req.body);
-
-  if (!title || !budget) {
-    return res.status(400).json({ error: "Title and Budget are required!" });
-  }
+  if (!title || !budget) return res.status(400).json({ error: "Title and Budget required!" });
 
   try {
     const queryText = `
       INSERT INTO errands (title, description, budget, location, client_id, status) 
-      VALUES ($1, $2, $3, $4, $5, $6) 
+      VALUES ($1, $2, $3, $4, $5, 'PENDING') 
       RETURNING *`;
-    
-    const values = [
-      title, 
-      description || "No description", 
-      budget, 
-      location || "Remote", 
-      clientId || 1, 
-      'PENDING'
-    ];
-
+    const values = [title, description || "No description", budget, location || "Remote", clientId || 1];
     const result = await db.query(queryText, values);
-    console.log("✅ Saved to AWS RDS. ID:", result.rows[0].id);
-    res.status(201).json({ message: "Saved to RDS.", data: result.rows[0] });
-
-  } catch (err) {
-    console.error("❌ REAL DB ERROR (POST):", err.message);
-    res.status(500).json({ error: "Could not save to database", details: err.message });
-  }
-});
-
-// 4. POST a Bid (Synced with Member 1's Variable Names)
-app.post('/bids', async (req, res) => {
-  const { errand_id, bid_amount, runner_id } = req.body;
-  
-  try {
-    console.log(`📥 New Bid Received: Errand #${errand_id} by Runner #${runner_id}`);
-    
-    const query = 'INSERT INTO bids (errand_id, bid_amount, runner_id) VALUES ($1, $2, $3) RETURNING *';
-    const result = await db.query(query, [errand_id, bid_amount, runner_id]);
-    
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("❌ Bid Error:", err.message);
-    res.status(500).json({ error: "Failed to place bid. Check if table 'bids' exists!" });
+    res.status(500).json({ error: "Post failed", details: err.message });
   }
 });
 
-// 5. S3 Image Upload
+// 4. POST a Bid (Applying for a task)
+app.post('/bids', async (req, res) => {
+  const { errand_id, bid_amount, runner_id } = req.body;
+  try {
+    const query = 'INSERT INTO bids (errand_id, bid_amount, runner_id) VALUES ($1, $2, $3) RETURNING *';
+    const result = await db.query(query, [errand_id, bid_amount, runner_id]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Bid failed. Ensure table exists." });
+  }
+});
+
+// 5. ACCEPT RUNNER: Update task status and assign runner
+app.patch('/errands/:id/accept', async (req, res) => {
+  const errandId = req.params.id;
+  const { runner_id } = req.body; 
+
+  try {
+    const query = `
+      UPDATE errands 
+      SET status = 'IN_PROGRESS', runner_id = $1 
+      WHERE id = $2 RETURNING *`;
+    const result = await db.query(query, [runner_id, errandId]);
+    res.json({ message: "Task started!", data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: "Assignment failed." });
+  }
+});
+
+// 6. S3 Image Upload
 app.get('/upload-url', async (req, res) => {
   const { fileName } = req.query;
-  if (!fileName) return res.status(400).json({ error: "Filename is required" });
-
   try {
     const url = await getUploadUrl(fileName);
     res.json({ uploadUrl: url });
   } catch (err) {
-    console.error("S3 Error:", err);
-    res.status(500).json({ error: "Could not generate S3 upload URL." });
+    res.status(500).json({ error: "S3 Error" });
   }
 });
 
