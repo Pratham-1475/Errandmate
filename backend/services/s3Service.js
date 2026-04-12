@@ -1,7 +1,7 @@
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
-const s3 = new S3Client({ region: "us-east-1" }); 
+const s3 = new S3Client({ region: "ap-south-1" }); 
 
 const getUploadUrl = async (fileName) => {
   const command = new PutObjectCommand({

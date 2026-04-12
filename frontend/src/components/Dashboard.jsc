@@ -1,0 +1,56 @@
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { motion } from 'framer-motion';
+
+const Dashboard = ({ user }) => {
+  const [myTasks, setMyTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      axios.get(`${import.meta.env.VITE_API_URL}/errands/user/1`) // Hardcoded ID 1 for Demo as per Akshat
+        .then(res => setMyTasks(res.data))
+        .finally(() => setLoading(false));
+    }
+  }, [user]);
+
+  const handleAcceptRunner = async (taskId, runnerId) => {
+    try {
+      await axios.patch(`${import.meta.env.VITE_API_URL}/errands/${taskId}/accept`, { runner_id: runnerId });
+      alert("Runner hired! Task is now In Progress.");
+      window.location.reload(); // Refresh to show updated status
+    } catch (err) { alert("Acceptance failed."); }
+  };
+
+  if (loading) return <div className="p-20 text-center">Loading your dashboard...</div>;
+
+  return (
+    <div className="max-w-5xl mx-auto py-12 px-6">
+      <h2 className="text-4xl font-black mb-10">My <span className="text-indigo-600">Errands</span></h2>
+      <div className="grid gap-6">
+        {myTasks.map(task => (
+          <div key={task.id} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center">
+            <div>
+              <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${task.status === 'PENDING' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                {task.status}
+              </span>
+              <h3 className="text-xl font-bold mt-2">{task.title}</h3>
+              <p className="text-slate-400 text-sm">Budget: ₹{task.budget}</p>
+            </div>
+            
+            {task.status === 'PENDING' && (
+              <button 
+                onClick={() => handleAcceptRunner(task.id, 123)} // Mock Runner ID for Demo
+                className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-100"
+              >
+                Accept Runner
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
