@@ -31,7 +31,7 @@ const ErrandFeed = () => {
     }
 
     try {
-      // 3. FIXED: Explicitly passing the id as runner_id
+      // 3. FIXED: Explicitly passing the ID as runner_id for the database link
       const payload = { 
         errand_id: errandId, 
         runner_id: savedUser.id 
