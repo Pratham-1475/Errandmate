@@ -12,10 +12,10 @@ const {
 
 const app = express();
 
-// --- Middleware ---
+// --- Middleware Configuration ---
 app.use(cors({ origin: "*" })); 
 app.use(express.json());
-app.options('*', cors()); // Handle pre-flight for all routes
+app.options('*', cors()); // Critical for cross-origin pre-flight requests
 
 // --- AWS Cognito Configuration ---
 const poolData = {
@@ -116,7 +116,7 @@ app.post('/login', (req, res) => {
   });
 });
 
-// --- 2. ERRAND MANAGEMENT ROUTES ---
+// --- 2. ERRAND MANAGEMENT ---
 
 app.get('/errands', async (req, res) => {
   try {
@@ -125,7 +125,6 @@ app.get('/errands', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Fetch errands failed" }); }
 });
 
-// Fetch tasks posted by the user
 app.get('/errands/user/:id', async (req, res) => {
   const userId = parseInt(req.params.id);
   if (isNaN(userId)) return res.status(400).json({ error: "Invalid ID" });
@@ -135,23 +134,18 @@ app.get('/errands/user/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Dashboard fetch failed" }); }
 });
 
-// NEW: Fetch tasks that the user has applied for
 app.get('/errands/applied/:id', async (req, res) => {
   const runnerId = parseInt(req.params.id);
   if (isNaN(runnerId)) return res.status(400).json({ error: "Invalid User ID" });
-
   try {
     const query = `
       SELECT e.*, b.bid_amount, b.status as bid_status 
       FROM errands e 
       JOIN bids b ON e.id = b.errand_id 
       WHERE b.runner_id = $1`;
-    
     const result = await db.query(query, [runnerId]);
     res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch applied tasks." });
-  }
+  } catch (err) { res.status(500).json({ error: "Failed to fetch applied tasks." }); }
 });
 
 app.post('/errands', async (req, res) => {
@@ -165,7 +159,7 @@ app.post('/errands', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Errand post failed" }); }
 });
 
-// --- 3. BIDDING & HIRING ---
+// --- 3. BIDDING, HIRING & COMPLETION ---
 
 app.get('/errands/:id/bids', async (req, res) => {
   try {
@@ -198,20 +192,36 @@ app.patch('/errands/:id/accept', async (req, res) => {
       'UPDATE errands SET runner_id = $1, status = $2 WHERE id = $3 RETURNING *',
       [parseInt(runner_id), 'IN_PROGRESS', errandId]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: "Errand not found" });
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: "Failed to hire runner" }); }
+  } catch (err) { res.status(500).json({ error: "Hiring failed" }); }
+});
+
+app.patch('/errands/:id/complete', async (req, res) => {
+  const errandId = parseInt(req.params.id);
+  const { userId } = req.body;
+  try {
+    const checkQuery = 'SELECT client_id FROM errands WHERE id = $1';
+    const checkResult = await db.query(checkQuery, [errandId]);
+    if (checkResult.rows[0].client_id !== parseInt(userId)) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    const result = await db.query(
+      'UPDATE errands SET status = $1 WHERE id = $2 RETURNING *',
+      ['COMPLETED', errandId]
+    );
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: "Completion failed" }); }
 });
 
 // --- 4. INFRASTRUCTURE ---
-app.get('/', (req, res) => res.status(200).send('🚀 ErrandMate Professional Cloud API is Live'));
+app.get('/', (req, res) => res.status(200).send('🚀 ErrandMate Professional Cloud API Live'));
 
 app.get('/upload-url', async (req, res) => {
   try {
     const url = await getUploadUrl(req.query.fileName);
     res.json({ uploadUrl: url });
-  } catch (err) { res.status(500).json({ error: "S3 URL generation failed" }); }
+  } catch (err) { res.status(500).json({ error: "S3 URL error" }); }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on Port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Final ErrandMate API Live on Port ${PORT}`));
