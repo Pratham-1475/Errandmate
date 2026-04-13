@@ -8,95 +8,127 @@ const Dashboard = ({ user }) => {
   const [appliedTasks, setAppliedTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTaskBids, setSelectedTaskBids] = useState(null);
+  const [bidsForTask, setBidsForTask] = useState([]); // Added to hold real bidders
 
   useEffect(() => {
     const fetchDashboard = async () => {
+      // FIX 1: Ensure we have a valid user.id before calling the API
       if (!user?.id) return;
       setLoading(true);
       try {
+        // Fetch tasks POSTED by the user (Dynamic ID)
         const resPosted = await axios.get(`${import.meta.env.VITE_API_URL}/errands/user/${user.id}`);
         setPostedTasks(resPosted.data);
 
+        // Fetch tasks user has APPLIED for (Dynamic ID)
         const resApplied = await axios.get(`${import.meta.env.VITE_API_URL}/users/${user.id}/bids`);
         setAppliedTasks(resApplied.data);
-      } catch (err) { console.error("Sync Error", err); }
-      finally { setLoading(false); }
+      } catch (err) { 
+        console.error("Dashboard Sync Error", err); 
+      } finally { 
+        setLoading(false); 
+      }
     };
     fetchDashboard();
   }, [user]);
 
-  const handleAcceptBidder = async (taskId, runnerId) => {
+  // FIX 2: Dynamic Bid Fetcher - No more mock data in the panel
+  const fetchBidsForTask = async (task) => {
+    setSelectedTaskBids(task);
     try {
-      await axios.patch(`${import.meta.env.VITE_API_URL}/errands/${taskId}/accept`, { runner_id: runnerId });
-      alert("Hiring Confirmed!");
-      window.location.reload();
-    } catch (err) { alert("Action failed."); }
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/errands/${task.id}/bids`);
+      setBidsForTask(res.data);
+    } catch (err) {
+      console.error("Failed to fetch bidders", err);
+      setBidsForTask([]); // Clear if error
+    }
   };
 
-  if (loading) return <div className="p-20 text-center font-black text-indigo-600 italic animate-pulse">Syncing ErrandMate Profile...</div>;
+  const handleAcceptBidder = async (taskId, runnerId) => {
+    try {
+      // FIX 3: Integer conversion for safety before patching RDS
+      await axios.patch(`${import.meta.env.VITE_API_URL}/errands/${parseInt(taskId)}/accept`, { 
+        runner_id: parseInt(runnerId) 
+      });
+      alert("Application Accepted! Task is now assigned.");
+      window.location.reload();
+    } catch (err) { 
+      alert("Hiring failed. Check if Akshat's accept route is active."); 
+    }
+  };
+
+  if (loading) return <div className="p-20 text-center font-black text-indigo-600">Loading PDEU Profile...</div>;
 
   return (
     <div className="max-w-5xl mx-auto py-12 px-6">
-      <div className="mb-10 p-10 bg-slate-900 rounded-[3rem] text-white flex justify-between items-center shadow-2xl border-4 border-slate-800">
+      {/* Profile Header */}
+      <div className="mb-10 p-10 bg-slate-900 rounded-[3rem] text-white flex justify-between items-center shadow-2xl">
         <div>
-          <h2 className="text-4xl font-black mb-2">Hi, {user?.name || 'User'}</h2>
+          <h2 className="text-4xl font-black mb-2">Hi, {user?.name || 'PDEU Student'}</h2>
           <div className="flex gap-2">
-            <span className="px-4 py-1.5 bg-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest">{user?.qualifications || 'ICT Student'}</span>
+            <span className="px-4 py-1.5 bg-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest">{user?.qualification || 'ICT Division'}</span>
+            <span className="px-4 py-1.5 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">{user?.skills || 'Member'}</span>
           </div>
         </div>
       </div>
 
+      {/* Navigation Tabs */}
       <div className="flex gap-4 mb-10 bg-slate-100 p-2 rounded-2xl w-fit">
-        <button onClick={() => setActiveTab('posted')} className={`px-8 py-3 rounded-xl font-black text-xs transition-all ${activeTab === 'posted' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>Posted Errand</button>
-        <button onClick={() => setActiveTab('accepted')} className={`px-8 py-3 rounded-xl font-black text-xs transition-all ${activeTab === 'accepted' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500 hover:text-slate-800'}`}>Applied Errand</button>
+        <button onClick={() => setActiveTab('posted')} className={`px-8 py-3 rounded-xl font-black text-sm transition-all ${activeTab === 'posted' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500'}`}>Tasks I Posted</button>
+        <button onClick={() => setActiveTab('accepted')} className={`px-8 py-3 rounded-xl font-black text-sm transition-all ${activeTab === 'accepted' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500'}`}>My Applied Tasks</button>
       </div>
 
+      {/* Task Grid */}
       <div className="grid gap-6">
         {activeTab === 'posted' ? (
           postedTasks.length > 0 ? postedTasks.map(task => (
-            <div key={task.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 flex justify-between items-center shadow-sm">
+            <div key={task.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div>
                 <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${task.status === 'PENDING' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>{task.status}</span>
                 <h3 className="text-2xl font-black mt-3">{task.title}</h3>
                 <p className="text-slate-400 text-sm mt-1">₹{task.budget} • {task.location}</p>
               </div>
               {task.status === 'PENDING' && (
-                <button onClick={() => setSelectedTaskBids(task)} className="px-6 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-slate-900 shadow-lg shadow-indigo-100 transition-all">View Applicants</button>
+                <button onClick={() => fetchBidsForTask(task)} className="px-6 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-slate-900 shadow-lg transition-all">View Applicants</button>
               )}
             </div>
-          )) : <p className="text-center py-20 text-slate-300 font-bold italic tracking-widest">No posted errands yet.</p>
+          )) : <p className="text-slate-400 text-center py-10">You haven't posted any tasks yet.</p>
         ) : (
           appliedTasks.length > 0 ? appliedTasks.map(task => (
             <div key={task.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 opacity-90">
-              <span className="text-[10px] font-black px-3 py-1 rounded-full bg-slate-100 text-slate-500 uppercase tracking-widest">{task.status || 'Active'}</span>
+              <span className="text-[10px] font-black px-3 py-1 rounded-full bg-slate-100 text-slate-500 uppercase">{task.status || 'Applied'}</span>
               <h3 className="text-2xl font-black mt-3">{task.title}</h3>
-              <p className="text-slate-400 text-sm mt-1 font-bold uppercase tracking-widest">{task.status === 'ASSIGNED' ? 'Contract Won ✅' : 'Application Sent ⏳'}</p>
+              <p className="text-slate-400 text-sm mt-1 font-bold">Status: {task.status === 'ASSIGNED' ? 'Accepted ✅' : 'Pending Review ⏳'}</p>
             </div>
-          )) : <p className="text-center py-20 text-slate-300 font-bold italic tracking-widest">No active applications found.</p>
+          )) : <p className="text-slate-400 text-center py-10">You haven't applied for any tasks yet.</p>
         )}
       </div>
 
-      {/* Applicant Overlay */}
+      {/* Applicants Panel (Slide Up) */}
       <AnimatePresence>
         {selectedTaskBids && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <div onClick={() => setSelectedTaskBids(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="relative bg-white w-full max-w-sm p-10 rounded-[3rem] shadow-2xl">
-              <h3 className="text-xl font-black mb-1">Hiring for</h3>
-              <p className="text-indigo-600 font-bold mb-8 text-lg italic tracking-tight">"{selectedTaskBids.title}"</p>
-              <div className="p-6 bg-slate-50 rounded-2xl flex justify-between items-center border border-slate-100 transition-all hover:border-indigo-600">
-                <div>
-                  <p className="font-black text-slate-800 tracking-tight">Akshat Dev</p>
-                  <p className="text-[10px] text-slate-500 font-black uppercase">Bid: ₹{selectedTaskBids.budget - 5}</p>
-                </div>
-                <button 
-                  onClick={() => handleAcceptBidder(selectedTaskBids.id, 101)}
-                  className="px-4 py-2 bg-indigo-600 text-white font-black text-[10px] rounded-lg hover:bg-emerald-500 transition-colors shadow-lg"
-                >
-                  Hire
-                </button>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedTaskBids(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
+            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="relative bg-white w-full max-w-lg p-10 rounded-[3rem] shadow-2xl">
+              <h3 className="text-2xl font-black mb-1">Applicants for</h3>
+              <p className="text-indigo-600 font-bold mb-8 text-lg">{selectedTaskBids.title}</p>
+              
+              <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Real-time Bids</p>
+                
+                {bidsForTask.length > 0 ? bidsForTask.map(bid => (
+                  <div key={bid.id} className="p-5 bg-slate-50 rounded-2xl flex justify-between items-center border border-slate-100">
+                    <div>
+                      <p className="font-black text-slate-800 tracking-tight">Runner #{bid.runner_id}</p>
+                      <p className="text-indigo-600 font-black mt-1 text-sm text-emerald-600">Bid: ₹{bid.bid_amount}</p>
+                    </div>
+                    <button onClick={() => handleAcceptBidder(selectedTaskBids.id, bid.runner_id)} className="px-4 py-2 bg-indigo-600 text-white font-black text-xs rounded-lg hover:bg-slate-900">Hire</button>
+                  </div>
+                )) : (
+                  <p className="text-slate-400 text-sm italic">No one has applied for this task yet.</p>
+                )}
               </div>
-              <button onClick={() => setSelectedTaskBids(null)} className="w-full mt-8 py-4 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-indigo-600 transition-colors">Close View</button>
+              <button onClick={() => setSelectedTaskBids(null)} className="w-full mt-8 py-4 text-slate-400 font-bold text-sm uppercase tracking-widest hover:text-slate-600">Close Panel</button>
             </motion.div>
           </div>
         )}

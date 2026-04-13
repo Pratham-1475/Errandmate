@@ -9,7 +9,12 @@ import Dashboard from './components/Dashboard';
 import LoginModal from './components/LoginModal';
 
 const PageWrapper = ({ children }) => (
-  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4 }}>
+  <motion.div 
+    initial={{ opacity: 0, y: 10 }} 
+    animate={{ opacity: 1, y: 0 }} 
+    exit={{ opacity: 0, y: -10 }} 
+    transition={{ duration: 0.4 }}
+  >
     {children}
   </motion.div>
 );
@@ -47,7 +52,7 @@ function AppContent() {
           <Link to="/" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Home</Link>
           <Link to="/feed" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Browse Feed</Link>
           <Link to="/post" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Post Task</Link>
-          {user && <Link to="/dashboard" className="text-sm font-black text-indigo-600 font-bold">My Dashboard</Link>}
+          {user && <Link to="/dashboard" className="text-sm font-black text-indigo-600">My Dashboard</Link>}
           
           {user ? (
             <div className="flex items-center gap-4 pl-6 border-l border-slate-100">
@@ -59,7 +64,7 @@ function AppContent() {
           ) : (
             <button 
               onClick={() => setIsLoginOpen(true)} 
-              className="px-6 py-2.5 bg-slate-900 text-white text-xs font-black rounded-full hover:bg-indigo-600 transition-all shadow-lg"
+              className="px-6 py-2.5 bg-slate-900 text-white text-xs font-black rounded-full hover:bg-indigo-600 transition-all shadow-lg shadow-slate-200"
             >
               Login / Signup
             </button>

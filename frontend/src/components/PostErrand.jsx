@@ -18,7 +18,7 @@ const PostErrand = () => {
 
     setLoading(true);
     try {
-      // Sending clientId to link the task to the logged-in user in RDS
+      // Sending clientId was the key fix yesterday to link the task in RDS
       const payload = { 
         ...form, 
         clientId: savedUser.id 
@@ -26,10 +26,9 @@ const PostErrand = () => {
 
       await axios.post(`${import.meta.env.VITE_API_URL}/errands`, payload);
       
-      // Trigger the custom success UI instead of a boring alert
+      // Yesterday we added this professional success animation
       setShowSuccess(true);
       
-      // Redirect to dashboard after a short delay so they see the success message
       setTimeout(() => {
         window.location.href = '/dashboard';
       }, 2000);
@@ -48,7 +47,6 @@ const PostErrand = () => {
         animate={{ opacity: 1, y: 0 }} 
         className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-2xl relative overflow-hidden"
       >
-        {/* Background Decorative Element */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -mr-16 -mt-16 opacity-50" />
 
         <h2 className="text-4xl font-black mb-2 tracking-tight">
@@ -106,51 +104,21 @@ const PostErrand = () => {
             disabled={loading} 
             className="w-full py-6 bg-slate-900 text-white font-black rounded-3xl hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 mt-4 flex items-center justify-center gap-3"
           >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Deploying to Cloud...</span>
-              </>
-            ) : (
-              "Launch Errand"
-            )}
+            {loading ? "Syncing..." : "Launch Errand"}
           </button>
         </form>
       </motion.div>
 
-      {/* --- BETTER SUCCESS POPUP --- */}
       <AnimatePresence>
         {showSuccess && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              className="absolute inset-0 bg-indigo-600/90 backdrop-blur-md" 
-            />
-            
-            <motion.div 
-              initial={{ scale: 0.8, y: 20, opacity: 0 }} 
-              animate={{ scale: 1, y: 0, opacity: 1 }} 
-              className="relative bg-white p-12 rounded-[3rem] shadow-2xl text-center max-w-sm w-full"
-            >
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-indigo-600/90 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.8, y: 20, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} className="relative bg-white p-12 rounded-[3rem] shadow-2xl text-center max-w-sm w-full">
               <h3 className="text-3xl font-black mb-2 tracking-tight text-slate-900">Task Launched!</h3>
-              <p className="text-slate-500 font-bold mb-8 text-sm">Your errand is now live on the campus feed and stored in the RDS database.</p>
-              
+              <p className="text-slate-500 font-bold mb-8 text-sm">Your errand is now live on the campus feed.</p>
               <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }} 
-                  animate={{ width: "100%" }} 
-                  transition={{ duration: 1.8 }}
-                  className="bg-indigo-600 h-full"
-                />
+                <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 1.8 }} className="bg-indigo-600 h-full" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4">Redirecting to Dashboard</p>
             </motion.div>
           </div>
         )}
