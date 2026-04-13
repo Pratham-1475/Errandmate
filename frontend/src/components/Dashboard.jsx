@@ -8,19 +8,16 @@ const Dashboard = ({ user }) => {
   const [appliedTasks, setAppliedTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTaskBids, setSelectedTaskBids] = useState(null);
-  const [bidsForTask, setBidsForTask] = useState([]); // Added to hold real bidders
+  const [bidsForTask, setBidsForTask] = useState([]);
 
   useEffect(() => {
     const fetchDashboard = async () => {
-      // FIX 1: Ensure we have a valid user.id before calling the API
       if (!user?.id) return;
       setLoading(true);
       try {
-        // Fetch tasks POSTED by the user (Dynamic ID)
         const resPosted = await axios.get(`${import.meta.env.VITE_API_URL}/errands/user/${user.id}`);
         setPostedTasks(resPosted.data);
 
-        // Fetch tasks user has APPLIED for (Dynamic ID)
         const resApplied = await axios.get(`${import.meta.env.VITE_API_URL}/users/${user.id}/bids`);
         setAppliedTasks(resApplied.data);
       } catch (err) { 
@@ -32,21 +29,20 @@ const Dashboard = ({ user }) => {
     fetchDashboard();
   }, [user]);
 
-  // FIX 2: Dynamic Bid Fetcher - No more mock data in the panel
   const fetchBidsForTask = async (task) => {
     setSelectedTaskBids(task);
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/errands/${task.id}/bids`);
+      // res.data should now include 'name' and 'qualifications' from the backend JOIN
       setBidsForTask(res.data);
     } catch (err) {
       console.error("Failed to fetch bidders", err);
-      setBidsForTask([]); // Clear if error
+      setBidsForTask([]);
     }
   };
 
   const handleAcceptBidder = async (taskId, runnerId) => {
     try {
-      // FIX 3: Integer conversion for safety before patching RDS
       await axios.patch(`${import.meta.env.VITE_API_URL}/errands/${parseInt(taskId)}/accept`, { 
         runner_id: parseInt(runnerId) 
       });
@@ -61,7 +57,6 @@ const Dashboard = ({ user }) => {
 
   return (
     <div className="max-w-5xl mx-auto py-12 px-6">
-      {/* Profile Header */}
       <div className="mb-10 p-10 bg-slate-900 rounded-[3rem] text-white flex justify-between items-center shadow-2xl">
         <div>
           <h2 className="text-4xl font-black mb-2">Hi, {user?.name || 'PDEU Student'}</h2>
@@ -72,13 +67,11 @@ const Dashboard = ({ user }) => {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
       <div className="flex gap-4 mb-10 bg-slate-100 p-2 rounded-2xl w-fit">
         <button onClick={() => setActiveTab('posted')} className={`px-8 py-3 rounded-xl font-black text-sm transition-all ${activeTab === 'posted' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500'}`}>Tasks I Posted</button>
         <button onClick={() => setActiveTab('accepted')} className={`px-8 py-3 rounded-xl font-black text-sm transition-all ${activeTab === 'accepted' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500'}`}>My Applied Tasks</button>
       </div>
 
-      {/* Task Grid */}
       <div className="grid gap-6">
         {activeTab === 'posted' ? (
           postedTasks.length > 0 ? postedTasks.map(task => (
@@ -96,7 +89,7 @@ const Dashboard = ({ user }) => {
         ) : (
           appliedTasks.length > 0 ? appliedTasks.map(task => (
             <div key={task.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 opacity-90">
-              <span className="text-[10px] font-black px-3 py-1 rounded-full bg-slate-100 text-slate-500 uppercase">{task.status || 'Applied'}</span>
+              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${task.status === 'ASSIGNED' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>{task.status || 'Applied'}</span>
               <h3 className="text-2xl font-black mt-3">{task.title}</h3>
               <p className="text-slate-400 text-sm mt-1 font-bold">Status: {task.status === 'ASSIGNED' ? 'Accepted ✅' : 'Pending Review ⏳'}</p>
             </div>
@@ -104,7 +97,6 @@ const Dashboard = ({ user }) => {
         )}
       </div>
 
-      {/* Applicants Panel (Slide Up) */}
       <AnimatePresence>
         {selectedTaskBids && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -119,7 +111,13 @@ const Dashboard = ({ user }) => {
                 {bidsForTask.length > 0 ? bidsForTask.map(bid => (
                   <div key={bid.id} className="p-5 bg-slate-50 rounded-2xl flex justify-between items-center border border-slate-100">
                     <div>
-                      <p className="font-black text-slate-800 tracking-tight">Runner #{bid.runner_id}</p>
+                      {/* INTEGRATED CHANGE: Displaying name and qualification if available */}
+                      <p className="font-black text-slate-800 tracking-tight">
+                        {bid.name || `Runner #${bid.runner_id}`}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {bid.qualifications || 'PDEU Student'}
+                      </p>
                       <p className="text-indigo-600 font-black mt-1 text-sm text-emerald-600">Bid: ₹{bid.bid_amount}</p>
                     </div>
                     <button onClick={() => handleAcceptBidder(selectedTaskBids.id, bid.runner_id)} className="px-4 py-2 bg-indigo-600 text-white font-black text-xs rounded-lg hover:bg-slate-900">Hire</button>
