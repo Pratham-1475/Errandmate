@@ -27,7 +27,6 @@ const userPool = new CognitoUserPool(poolData);
 const formatUsername = (email) => email.toLowerCase().replace(/[@.]/g, "_");
 
 // --- DATABASE INITIALIZATION ---
-// Ensures tables exist in AWS RDS on startup
 async function initDatabase() {
   console.log("🔄 Verifying AWS RDS Database Schema...");
   try {
@@ -85,7 +84,6 @@ app.post('/signup', (req, res) => {
     if (err) return res.status(400).json({ error: err.message });
 
     try {
-      // Sync Cognito user with RDS PostgreSQL
       const query = `
         INSERT INTO users (name, email, password, qualifications, skills) 
         VALUES ($1, $2, 'COGNITO_MANAGED', $3, $4) 
@@ -165,14 +163,13 @@ app.post('/errands', async (req, res) => {
 
 app.get('/errands/:id/bids', async (req, res) => {
   try {
-    // JOIN with users table to provide Runner Name, Skills, and Qualifications as requested by Member 1
     const query = `
       SELECT 
         b.id as bid_id, 
         b.bid_amount, 
         b.runner_id, 
-        u.name, 
-        u.qualifications, 
+        COALESCE(u.name, 'Student #' || u.id) as name, 
+        COALESCE(u.qualifications, 'ICT Division') as qualifications, 
         u.skills 
       FROM bids b 
       JOIN users u ON b.runner_id = u.id 
@@ -205,7 +202,6 @@ app.patch('/errands/:id/accept', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Hiring failed" }); }
 });
 
-// Handles the full lifecycle completion (Supports both route aliases)
 app.patch(['/errands/:id/complete', '/errands/:id/status'], async (req, res) => {
   const errandId = parseInt(req.params.id);
   const { status } = req.body; 
