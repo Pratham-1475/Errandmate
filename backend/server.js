@@ -15,7 +15,7 @@ const app = express();
 // --- Middleware Configuration ---
 app.use(cors({ origin: "*" })); 
 app.use(express.json());
-app.options('*', cors()); // Critical for cross-origin pre-flight requests
+app.options('*', cors()); 
 
 // --- AWS Cognito Configuration ---
 const poolData = {
@@ -196,19 +196,15 @@ app.patch('/errands/:id/accept', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Hiring failed" }); }
 });
 
-app.patch('/errands/:id/complete', async (req, res) => {
+app.patch(['/errands/:id/complete', '/errands/:id/status'], async (req, res) => {
   const errandId = parseInt(req.params.id);
-  const { userId } = req.body;
+  const { status } = req.body; 
   try {
-    const checkQuery = 'SELECT client_id FROM errands WHERE id = $1';
-    const checkResult = await db.query(checkQuery, [errandId]);
-    if (checkResult.rows[0].client_id !== parseInt(userId)) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
     const result = await db.query(
       'UPDATE errands SET status = $1 WHERE id = $2 RETURNING *',
-      ['COMPLETED', errandId]
+      [status || 'COMPLETED', errandId]
     );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Errand not found" });
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Completion failed" }); }
 });
